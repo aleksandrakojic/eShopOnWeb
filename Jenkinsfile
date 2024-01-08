@@ -15,6 +15,14 @@ pipeline {
     }
 
     stages {
+        stage('Checkout code') {
+            steps {
+                git(url: "https://github.com/aleksandrakojic/eShopOnWeb", branch: main)
+                script {
+                    sh 'ls -la'
+                }
+            }
+        }
         stage('Terraform Init') {
                 steps {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]){
@@ -68,15 +76,16 @@ pipeline {
                 }
             }
         }
-        stage('Build Images') {
-            steps {
-                parallel 'Build Web UI image': {
+        stage('Build Images and Publish') {
+            parallel {
+                stage('Build Web UI image') {
                     sh 'cd src/Web/'
                     docker.withRegistry(DOCKER_REGISTRY, 'docker-credentials') {
                         def dockerimage = docker.build("eshop-web:latest-${env.BRANCH_NAME}")
                         dockerimage.push()
                     }
-                }, 'Build PublicApi image': {
+                }
+                stage('Build PublicApi image') {
                     sh 'cd src/PublicApi/'
                     docker.withRegistry(DOCKER_REGISTRY, 'docker-credentials') {
                         def dockerimage = docker.build("eshop-public-api:latest-${env.BRANCH_NAME}")
