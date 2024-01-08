@@ -79,17 +79,21 @@ pipeline {
         stage('Build Images and Publish') {
             parallel {
                 stage('Build Web UI image') {
-                    sh 'cd src/Web/'
-                    sh 'docker build -t eshop-web:latest-${env.BRANCH_NAME} .'
-                    withDockerRegistry('docker-credentials', env.DOCKER_REGISTRY) {
-                        sh 'docker push eshop-web:latest-${env.BRANCH_NAME}'
+                    script {
+                        sh 'cd src/Web/'
+                        sh 'docker build -t eshop-web:latest-${env.BRANCH_NAME} .'
+                        withDockerRegistry('docker-credentials', env.DOCKER_REGISTRY) {
+                            sh 'docker push eshop-web:latest-${env.BRANCH_NAME}'
+                        }
                     }
                 }
                 stage('Build PublicApi image') {
-                    sh 'cd src/PublicApi/'
-                    sh 'docker build -t eshop-public-api:latest-${env.BRANCH_NAME} .'
-                    withDockerRegistry(DOCKER_REGISTRY, 'docker-credentials') {
-                        sh 'docker push eshop-public-api:latest-${env.BRANCH_NAME}'
+                    script {
+                        sh 'cd src/PublicApi/'
+                        sh 'docker build -t eshop-public-api:latest-${env.BRANCH_NAME} .'
+                        withDockerRegistry(DOCKER_REGISTRY, 'docker-credentials') {
+                            sh 'docker push eshop-public-api:latest-${env.BRANCH_NAME}'
+                        }
                     }
                 }
             }
