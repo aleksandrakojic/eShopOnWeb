@@ -1,4 +1,5 @@
 pipeline {
+<<<<<<< Updated upstream
   agent any
   stages {
     stage('Checkout code') {
@@ -9,6 +10,14 @@ pipeline {
 
         git(url: 'https://github.com/aleksandrakojic/eShopOnWeb.git', branch: 'main')
       }
+=======
+    agent any
+    environment {
+        AWS_CREDENTIALS = credentials('aws-credentials')
+        AWS_DEFAULT_REGION = "eu-central-1"
+        DOCKER_REGISTRY = "https://hub.docker.com/"
+        VERSION = "1.0.${env.BUILD_NUMBER}"
+>>>>>>> Stashed changes
     }
 
     stage('Terraform Init') {
