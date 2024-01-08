@@ -17,16 +17,16 @@ pipeline {
     stages {
         stage('Checkout code') {
             steps {
-                git(url: "https://github.com/aleksandrakojic/eShopOnWeb", branch: main)
+                git(url: "https://github.com/aleksandrakojic/eShopOnWeb", branch: 'main')
                 script {
                     sh 'ls -la'
                 }
             }
         }
         stage('Terraform Init') {
-                steps {
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]){
-                        dir('terraform') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]){
+                    dir('terraform') {
                         sh 'echo "=================Terraform Init=================="'
                         sh 'terraform init'
                     }
@@ -34,68 +34,73 @@ pipeline {
             }
         }
         stage("Terraform Plan") {
+            when {
+                expression {
+                    params.PLAN_TERRAFORM
+                }
+            }
             steps {
-                script {
-                    if (params.PLAN_TERRAFORM) {
-                        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]){
-                            dir('terraform') {
-                                sh 'echo "=================Terraform Plan=================="'
-                                sh 'terraform plan'
-                            }
-                        }
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]){
+                    dir('terraform') {
+                        sh 'echo "=================Terraform Plan=================="'
+                        sh 'terraform plan'
                     }
                 }
             }
         }
         stage('Terraform Apply') {
+            when {
+                expression {
+                    params.APPLY_TERRAFORM
+                }
+            }
             steps {
-                script {
-                    if (params.APPLY_TERRAFORM) {
-                       withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]){
-                            dir('terraform') {
-                                sh 'echo "=================Terraform Apply=================="'
-                                sh 'terraform apply -auto-approve'
-                            }
-                        }
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]){
+                    dir('terraform') {
+                        sh 'echo "=================Terraform Apply=================="'
+                        sh 'terraform apply -auto-approve'
                     }
                 }
             }
         }
 
         stage('Terraform Destroy') {
+            when {
+                expression {
+                    params.DESTROY_TERRAFORM
+                }
+            }
             steps {
-                script {
-                    if (params.DESTROY_TERRAFORM) {
-                       withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]){
-                            dir('terraform') {
-                                sh 'echo "=================Terraform Destroy=================="'
-                                sh 'terraform destroy -auto-approve'
-                            }
-                        }
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]){
+                    dir('terraform') {
+                        sh 'echo "=================Terraform Destroy=================="'
+                        sh 'terraform destroy -auto-approve'
                     }
                 }
             }
         }
         stage('Build Images and Publish') {
-            parallel {
-                stage('Build Web UI image') {
-                    script {
-                        sh 'cd src/Web/'
-                        sh 'docker build -t eshop-web:latest-${env.BRANCH_NAME} .'
-                        withDockerRegistry('docker-credentials', env.DOCKER_REGISTRY) {
-                            sh 'docker push eshop-web:latest-${env.BRANCH_NAME}'
+            steps {
+                parallel(
+                    "Build Web UI image": {
+                        script {
+                            sh 'cd src/Web/'
+                            sh 'docker build -t eshop-web:latest-${env.BRANCH_NAME} .'
+                            withDockerRegistry(url: env.DOCKER_REGISTRY, credentialsId: 'docker-credentials') {
+                                sh 'docker push eshop-web:latest-${env.BRANCH_NAME}'
+                            }
+                        }
+                    },
+                    "Build PublicApi image": {
+                        script {
+                            sh 'cd src/PublicApi/'
+                            sh 'docker build -t eshop-public-api:latest-${env.BRANCH_NAME} .'
+                            withDockerRegistry(url: env.DOCKER_REGISTRY, credentialsId: 'docker-credentials') {
+                                sh 'docker push eshop-public-api:latest-${env.BRANCH_NAME}'
+                            }
                         }
                     }
-                }
-                stage('Build PublicApi image') {
-                    script {
-                        sh 'cd src/PublicApi/'
-                        sh 'docker build -t eshop-public-api:latest-${env.BRANCH_NAME} .'
-                        withDockerRegistry(DOCKER_REGISTRY, 'docker-credentials') {
-                            sh 'docker push eshop-public-api:latest-${env.BRANCH_NAME}'
-                        }
-                    }
-                }
+                )
             }
         }
         // stage("Deploy to EKS") {
