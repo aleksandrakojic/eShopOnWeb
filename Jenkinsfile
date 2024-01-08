@@ -6,6 +6,11 @@ pipeline {
         DOCKER_REGISTRY = "https://hub.docker.com/"
         VERSION = "1.0.${env.BUILD_NUMBER}"
     }
+    parameters {
+        booleanParam(name: 'PLAN_TERRAFORM', defaultValue: false, description: 'Check to plan Terraform changes')
+        booleanParam(name: 'APPLY_TERRAFORM', defaultValue: false, description: 'Check to apply Terraform changes')
+        booleanParam(name: 'DESTROY_TERRAFORM', defaultValue: false, description: 'Check to apply Terraform changes')
+    }
 
   stages {
     stage('Checkout code') {
@@ -120,16 +125,5 @@ pipeline {
     }
 
   }
-  environment {
-    AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
-    AWS_DEFAULT_REGION = 'eu-central-1'
-    DOCKER_REGISTRY = 'https://hub.docker.com/'
-    VERSION = "1.0.${env.BUILD_NUMBER}"
-  }
-  parameters {
-    booleanParam(name: 'PLAN_TERRAFORM', defaultValue: false, description: 'Check to plan Terraform changes')
-    booleanParam(name: 'APPLY_TERRAFORM', defaultValue: false, description: 'Check to apply Terraform changes')
-    booleanParam(name: 'DESTROY_TERRAFORM', defaultValue: false, description: 'Check to apply Terraform changes')
-  }
+  
 }
