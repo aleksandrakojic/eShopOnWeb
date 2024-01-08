@@ -80,16 +80,16 @@ pipeline {
             parallel {
                 stage('Build Web UI image') {
                     sh 'cd src/Web/'
-                    docker.withRegistry(DOCKER_REGISTRY, 'docker-credentials') {
-                        def dockerimage = docker.build("eshop-web:latest-${env.BRANCH_NAME}")
-                        dockerimage.push()
+                    sh 'docker build -t eshop-web:latest-${env.BRANCH_NAME} .'
+                    withDockerRegistry('docker-credentials', env.DOCKER_REGISTRY) {
+                        sh 'docker push eshop-web:latest-${env.BRANCH_NAME}'
                     }
                 }
                 stage('Build PublicApi image') {
                     sh 'cd src/PublicApi/'
-                    docker.withRegistry(DOCKER_REGISTRY, 'docker-credentials') {
-                        def dockerimage = docker.build("eshop-public-api:latest-${env.BRANCH_NAME}")
-                        dockerimage.push()
+                    sh 'docker build -t eshop-public-api:latest-${env.BRANCH_NAME} .'
+                    withDockerRegistry(DOCKER_REGISTRY, 'docker-credentials') {
+                        sh 'docker push eshop-public-api:latest-${env.BRANCH_NAME}'
                     }
                 }
             }
