@@ -9,7 +9,7 @@ variable "mysql_dbname" {}
 # RDS Subnet Group
 resource "aws_db_subnet_group" "sql_db_subnet_group" {
   name       = var.db_subnet_group_name
-  subnet_ids = var.subnet_groups # replace with your private subnet IDs
+  subnet_ids = var.subnet_groups 
 }
 
 resource "aws_db_instance" "default" {
@@ -51,8 +51,7 @@ module "db" {
   maintenance_window = "Mon:00:00-Mon:03:00"
   backup_window      = "03:00-06:00"
 
-  # Enhanced Monitoring - see example for details on how to create the role
-  # by yourself, in case you don't want to create it automatically
+
   monitoring_interval    = "30"
   monitoring_role_name   = "MyRDSMonitoringRole"
   create_monitoring_role = true
@@ -62,17 +61,13 @@ module "db" {
     Environment = "production"
   }
 
-  # DB subnet group
   create_db_subnet_group = true
   subnet_ids             = ["subnet-12345678", "subnet-87654321"]
 
-  # DB parameter group
   family = "mysql8.0"
 
-  # DB option group
   major_engine_version = "8.0"
 
-  # Database Deletion Protection
   deletion_protection = true
 
   parameters = [

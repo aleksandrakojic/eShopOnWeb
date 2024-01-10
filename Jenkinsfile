@@ -21,7 +21,7 @@ pipeline {
         }
         
       }
-    
+    }
 
     stage('Terraform Init') {
       steps {
@@ -97,27 +97,27 @@ pipeline {
       parallel {
         stage('Build Web UI image') {
           steps {
-            script {
-              sh 'cd src/Web/'
-              sh 'docker build -t eshop-web:latest-${env.BRANCH_NAME} .'
-              withDockerRegistry(url: env.DOCKER_REGISTRY, credentialsId: 'docker-credentials') {
-                sh 'docker push eshop-web:latest-${env.BRANCH_NAME}'
+            dir('src/Web/') {
+              script {
+                sh 'docker build -t eshop-web:latest-${env.BRANCH_NAME} .'
+                withDockerRegistry(url: env.DOCKER_REGISTRY, credentialsId: 'docker-credentials') {
+                  sh 'docker push eshop-web:latest-${env.BRANCH_NAME}'
+                }
               }
             }
-
           }
         }
 
         stage('Build PublicApi image') {
           steps {
-            script {
-              sh 'cd src/PublicApi/'
-              sh 'docker build -t eshop-public-api:latest-${env.BRANCH_NAME} .'
-              withDockerRegistry(url: env.DOCKER_REGISTRY, credentialsId: 'docker-credentials') {
-                sh 'docker push eshop-public-api:latest-${env.BRANCH_NAME}'
+            dir('src/PublicApi/') {
+              script {
+                sh 'docker build -t eshop-public-api:latest-${env.BRANCH_NAME} .'
+                withDockerRegistry(url: env.DOCKER_REGISTRY, credentialsId: 'docker-credentials') {
+                  sh 'docker push eshop-public-api:latest-${env.BRANCH_NAME}'
+                }
               }
             }
-
           }
         }
 
@@ -126,5 +126,4 @@ pipeline {
 
   }
   
-}
 }
