@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
         VERSION = "1.0.${env.BUILD_NUMBER}"
-        
+
         AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
         AWS_DEFAULT_REGION = "eu-central-1"
@@ -112,12 +112,15 @@ pipeline {
             dir('src/Web/') {
               script {
                 def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
-                // Docker login
-                sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
+
                 sh "docker build -t ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile"
-                sh "docker push ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION}"
-                // Docker logout
-                sh "docker logout"
+                withDockerRegistry(credentialsId: 'docker-credentials', url: 'https://hub.docker.com/') {
+                  sh "docker push ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION}"
+                }
+                // Docker login
+                // sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
+                
+                // sh "docker logout"
               }
             }
           }
@@ -128,12 +131,14 @@ pipeline {
             dir('src/PublicApi/') {
               script {
                 def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
-                // Docker login
-                sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
+
                 sh "docker build -t ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile"
-                sh "docker push ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION}"
-                // Docker logout
-                sh "docker logout"
+                withDockerRegistry(credentialsId: 'docker-credentials', url: 'https://hub.docker.com/') {
+                  sh "docker push ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION}"
+                }
+                // Docker login
+                // sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
+                // sh "docker logout"
               }
             }
           }
