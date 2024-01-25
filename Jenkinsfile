@@ -113,7 +113,7 @@ pipeline {
               script {
                 def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
 
-                sh "docker build -t ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile"
+                sh "docker build -t ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile ."
                 withDockerRegistry(credentialsId: 'docker-credentials', url: 'https://hub.docker.com/') {
                   sh "docker push ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION}"
                 }
@@ -132,7 +132,7 @@ pipeline {
               script {
                 def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
 
-                sh "docker build -t ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile"
+                sh "docker build -t ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile ."
                 withDockerRegistry(credentialsId: 'docker-credentials', url: 'https://hub.docker.com/') {
                   sh "docker push ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION}"
                 }
