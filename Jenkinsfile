@@ -1,14 +1,17 @@
 pipeline {
     agent any
     environment {
+        VERSION = "1.0.${env.BUILD_NUMBER}"
+        
         AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
         AWS_DEFAULT_REGION = "eu-central-1"
 
-        DOCKER_REGISTRY = "underdogdevops"
+        DOCKER_USERNAME = "underdogdevops"
+        DOCKER_CREDENTIALS = credentials('docker-credentials')
+
         ESHOPWEBMVC_IMAGE = "underdogdevops/eshopwebmvc"
         ESHOPPUBLICAPI_IMAGE = "underdogdevops/eshoppublicapi"
-        VERSION = "1.0.${env.BUILD_NUMBER}"
     }
     parameters {
         booleanParam(name: 'PLAN_TERRAFORM', defaultValue: false, description: 'Check to plan Terraform changes')
