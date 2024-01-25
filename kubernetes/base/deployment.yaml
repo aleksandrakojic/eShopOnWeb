@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eshopwebmvc
+spec:
+  template:
+    spec:
+      containers:
+      - name: eshopwebmvc
+        image: ${DOCKER_REGISTRY-}eshopwebmvc
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: aspnet-https
+          mountPath: /root/.aspnet/https
+          readOnly: true
+        - name: usersecrets
+          mountPath: /root/.microsoft/usersecrets
+          readOnly: true
+        environment:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: Docker
+        - name: ASPNETCORE_URLS
+          value: http://+:8080
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eshoppublicapi
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: eshoppublicapi
+        image: ${DOCKER_REGISTRY-}eshoppublicapi
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: aspnet-https
+          mountPath: /root/.aspnet/https
+          readOnly: true
+        - name: usersecrets
+          mountPath: /root/.microsoft/usersecrets
+          readOnly: true
+        environment:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: Docker
+        - name: ASPNETCORE_URLS
+          value: http://+:8080

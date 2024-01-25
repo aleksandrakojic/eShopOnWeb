@@ -1,25 +1,20 @@
-output "vpc_id" {
-  description = "The ID of the VPC"
-  value       = module.eks-vpc.vpc_id
+
+output "cluster_endpoint" {
+  description = "Endpoint for EKS control plane"
+  value       = module.eks.cluster_endpoint
 }
 
-output "cluster_id" {
-  description = "The ID of the EKS cluster."
-  value       = module.eks.cluster_id
+output "cluster_security_group_id" {
+  description = "Security group ids attached to the cluster control plane"
+  value       = module.eks.cluster_security_group_id
+}
+
+output "region" {
+  description = "AWS region"
+  value       = var.region
 }
 
 output "cluster_name" {
-  description = "The name of the EKS cluster"
+  description = "Kubernetes Cluster Name"
   value       = module.eks.cluster_name
 }
-
-# output "cluster_status" {
-#   description = "Status of the EKS cluster. One of `CREATING`, `ACTIVE`, `DELETING`, `FAILED`"
-#   value       = module.eks.cluster_status
-# }
-
-# output "cluster_security_group_id" {
-#   description = "Cluster security group that was created by Amazon EKS for the cluster. Managed node groups use this security group for control-plane-to-data-plane communication. Referred to as 'Cluster security group' in the EKS console"
-#   value       = module.eks.cluster_security_group_id
-# }
-

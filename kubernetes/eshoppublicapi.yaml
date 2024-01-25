@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eshoppublicapi
+spec:
+  selector:
+    matchLabels:
+      app: eshoppublicapi
+  template:
+    metadata:
+      labels:
+        app: eshoppublicapi
+    spec:
+      containers:
+      - name: eshoppublicapi
+        image: eshoppublicapi:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080

@@ -1,0 +1,27 @@
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: eshopwebmvc
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      nodePort: 5106
+  selector:
+    app: eshopwebmvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eshoppublicapi
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      nodePort: 5200
+  selector:
+    app: eshoppublicapi

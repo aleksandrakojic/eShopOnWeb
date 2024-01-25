@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eshopwebmvc
+spec:
+  selector:
+    matchLabels:
+      app: eshopwebmvc
+  template:
+    metadata:
+      labels:
+        app: eshopwebmvc
+    spec:
+      containers:
+      - name: eshopwebmvc
+        image: eshopwebmvc:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080

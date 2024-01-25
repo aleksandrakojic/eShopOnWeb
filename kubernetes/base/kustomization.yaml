@@ -1,0 +1,19 @@
+resources:
+  - deployment.yaml
+  - services.yaml
+
+commonLabels:
+  app: kustomeshop
+
+patchesStrategicMerge:
+  - overlay.yaml
+
+namePrefix: 
+  eshop-
+
+nameSuffix: 
+  -v1
+
+configMapGenerator:
+  - name: eshop-config
+    env: config.properties

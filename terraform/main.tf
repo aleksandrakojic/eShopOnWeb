@@ -1,110 +1,113 @@
-data "aws_availability_zones" "azs" {}
 
-module "eks-vpc" {
-  source          = "terraform-aws-modules/vpc/aws"
-  version         = "5.0.0"
-  name            = var.vpc_name
-  cidr            = var.vpc_cidr
-  private_subnets = var.cidr_private_subnet
-  public_subnets  = var.cidr_public_subnet
-  azs             = data.aws_availability_zones.azs.names
+provider "aws" {
+  region = var.region
+}
+
+data "aws_availability_zones" "available" {
+  filter {
+    name   = "opt-in-status"
+    values = ["opt-in-not-required"]
+  }
+}
+
+locals {
+  cluster_name = "eks-${random_string.suffix.result}"
+}
+
+resource "random_string" "suffix" {
+  length  = 8
+  special = false
+}
+
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.0.0"
+
+  name = "vpc"
+
+  cidr = "10.0.0.0/16"
+  azs  = slice(data.aws_availability_zones.available.names, 0, 3)
+
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  public_subnets  = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
 
   enable_nat_gateway   = true
   single_nat_gateway   = true
   enable_dns_hostnames = true
 
-  tags = {
-    "kubernetes.io/cluster/eshop-eks-cluster" = "shared"
-  }
-
   public_subnet_tags = {
-    "kubernetes.io/cluster/eshop-eks-cluster" = "shared"
-    "kubernetes.io/role/elb"                  = 1
+    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                      = 1
   }
 
   private_subnet_tags = {
-    "kubernetes.io/cluster/eshop-eks-cluster" = "shared"
-    "kubernetes.io/role/internal-elb"         = 1
+    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"             = 1
   }
 }
 
 module "eks" {
-    source  = "terraform-aws-modules/eks/aws"
-    version = "~> 19.21"
+  source  = "terraform-aws-modules/eks/aws"
+  version = "19.21.0"
 
-    cluster_name = "eshop-eks-cluster"
-    cluster_version = "1.28"
+  cluster_name    = local.cluster_name
+  cluster_version = "1.29"
 
-    cluster_endpoint_public_access  = true
+  vpc_id                         = module.vpc.vpc_id
+  subnet_ids                     = module.vpc.private_subnets
+  cluster_endpoint_public_access = true
 
-    vpc_id = module.eks-vpc.vpc_id
-    subnet_ids = module.eks-vpc.private_subnets
+  eks_managed_node_group_defaults = {
+    ami_type = "AL2_x86_64"
 
-    tags = {
-        environment = "production"
-        application = "eshop-server"
+  }
+
+  eks_managed_node_groups = {
+    one = {
+      name = "public-node-group"
+
+      instance_types = ["t3.small"]
+
+      min_size     = 1
+      max_size     = 3
+      desired_size = 2
     }
 
-    eks_managed_node_groups = {
-        dev = {
-            min_size = 1
-            max_size = 3
-            desired_size = 2
+    two = {
+      name = "private-node-group"
 
-            instance_types = ["t2.medium"]
-        }
+      instance_types = ["t3.small"]
+
+      min_size     = 1
+      max_size     = 2
+      desired_size = 1
+      private      = true
     }
+  }
 }
 
+data "aws_iam_policy" "ebs_csi_policy" {
+  arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
 
-# module "lb_target_group" {
-#   source                   = "./load-balancer-target-group"
-#   lb_target_group_name     = "devops-lb-target-group"
-#   lb_target_group_port     = 5000
-#   lb_target_group_protocol = "HTTP"
-#   vpc_id                   = module.networking.devops_vpc_id
-#   ec2_instance_id          = module.ec2.devops_ec2_instance_id
-# }
+module "irsa-ebs-csi" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
+  version = "4.7.0"
 
-# module "alb" {
-#   source                    = "./load-balancer"
-#   lb_name                   = "devops-alb"
-#   is_external               = false
-#   lb_type                   = "application"
-#   sg_enable_ssh_https       = module.security_group.sg_ec2_sg_ssh_http_id
-#   subnet_ids                = tolist(module.networking.devops_public_subnets)
-#   tag_name                  = "devops-alb"
-#   lb_target_group_arn       = module.lb_target_group.devops_lb_target_group_arn
-#   ec2_instance_id           = module.ec2.devops_ec2_instance_id
-#   lb_listner_port           = 5000
-#   lb_listner_protocol       = "HTTP"
-#   lb_listner_default_action = "forward"
-#   lb_https_listner_port     = 443
-#   lb_https_listner_protocol = "HTTPS"
-#   devops_acm_arn        = module.aws_ceritification_manager.devops_acm_arn
-#   lb_target_group_attachment_port = 5000
-# }
+  create_role                   = true
+  role_name                     = "AmazonEKSTFEBSCSIRole-${module.eks.cluster_name}"
+  provider_url                  = module.eks.oidc_provider
+  role_policy_arns              = [data.aws_iam_policy.ebs_csi_policy.arn]
+  oidc_fully_qualified_subjects = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
+}
 
-# module "hosted_zone" {
-#   source          = "./hosted-zone"
-#   domain_name     = var.domain_name
-#   aws_lb_dns_name = module.alb.aws_lb_dns_name
-#   aws_lb_zone_id  = module.alb.aws_lb_zone_id
-# }
-
-# module "aws_ceritification_manager" {
-#   source         = "./certificate-manager"
-#   domain_name    = var.domain_name
-#   hosted_zone_id = module.hosted_zone.hosted_zone_id
-# }
-
-# module "rds_db_instance" {
-#   source               = "./rds"
-#   db_subnet_group_name = "devops_rds_subnet_group"
-#   subnet_groups        = tolist(module.networking.devops_public_subnets)
-#   rds_mysql_sg_id      = module.security_group.rds_mysql_sg_id
-#   mysql_db_identifier  = "mydb"
-#   mysql_username       = "dbuser"
-#   mysql_password       = "dbpassword"
-#   mysql_dbname         = "devprojdb"
-# }
+resource "aws_eks_addon" "ebs-csi" {
+  cluster_name             = module.eks.cluster_name
+  addon_name               = "aws-ebs-csi-driver"
+  addon_version            = "v1.20.0-eksbuild.1"
+  service_account_role_arn = module.irsa-ebs-csi.iam_role_arn
+  tags = {
+    "eks_addon" = "ebs-csi"
+    "terraform" = "true"
+  }
+}

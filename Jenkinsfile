@@ -1,9 +1,13 @@
 pipeline {
     agent any
     environment {
-        AWS_CREDENTIALS = credentials('aws-credentials')
+        AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
         AWS_DEFAULT_REGION = "eu-central-1"
-        DOCKER_REGISTRY = "https://hub.docker.com/"
+
+        DOCKER_REGISTRY = "underdogdevops"
+        ESHOPWEBMVC_IMAGE = "underdogdevops/eshopwebmvc"
+        ESHOPPUBLICAPI_IMAGE = "underdogdevops/eshoppublicapi"
         VERSION = "1.0.${env.BUILD_NUMBER}"
     }
     parameters {
@@ -13,6 +17,11 @@ pipeline {
     }
 
   stages {
+    stage('clean workspace'){
+      steps{
+          cleanWs()
+      }
+    }
     stage('Checkout code') {
       steps {
         git(url: 'https://github.com/aleksandrakojic/eShopOnWeb.git', branch: 'main')
@@ -27,7 +36,7 @@ pipeline {
       steps {
         withCredentials(bindings: [[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           dir(path: 'terraform') {
-            sh 'echo "=================Terraform Init=================="'
+            sh 'echo "======Terraform Init======="'
             sh 'terraform init'
           }
 
@@ -46,7 +55,7 @@ pipeline {
       steps {
         withCredentials(bindings: [[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           dir(path: 'terraform') {
-            sh 'echo "=================Terraform Plan=================="'
+            sh 'echo "=========Terraform Plan=========="'
             sh 'terraform plan'
           }
 
@@ -65,7 +74,7 @@ pipeline {
       steps {
         withCredentials(bindings: [[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           dir(path: 'terraform') {
-            sh 'echo "=================Terraform Apply=================="'
+            sh 'echo "=========Terraform Apply============"'
             sh 'terraform apply -auto-approve'
           }
 
@@ -84,7 +93,7 @@ pipeline {
       steps {
         withCredentials(bindings: [[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           dir(path: 'terraform') {
-            sh 'echo "=================Terraform Destroy=================="'
+            sh 'echo "=========Terraform Destroy=========="'
             sh 'terraform destroy -auto-approve'
           }
 
@@ -99,10 +108,13 @@ pipeline {
           steps {
             dir('src/Web/') {
               script {
-                sh 'docker build -t eshop-web:latest-${env.BRANCH_NAME} .'
-                withDockerRegistry(url: env.DOCKER_REGISTRY, credentialsId: 'docker-credentials') {
-                  sh 'docker push eshop-web:latest-${env.BRANCH_NAME}'
-                }
+                def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
+                // Docker login
+                sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
+                sh "docker build -t ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile"
+                sh "docker push ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION}"
+                // Docker logout
+                sh "docker logout"
               }
             }
           }
@@ -112,10 +124,13 @@ pipeline {
           steps {
             dir('src/PublicApi/') {
               script {
-                sh 'docker build -t eshop-public-api:latest-${env.BRANCH_NAME} .'
-                withDockerRegistry(url: env.DOCKER_REGISTRY, credentialsId: 'docker-credentials') {
-                  sh 'docker push eshop-public-api:latest-${env.BRANCH_NAME}'
-                }
+                def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
+                // Docker login
+                sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
+                sh "docker build -t ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile"
+                sh "docker push ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION}"
+                // Docker logout
+                sh "docker logout"
               }
             }
           }
