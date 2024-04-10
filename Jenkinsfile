@@ -37,8 +37,7 @@ pipeline {
         stage('Build and Push Docker Images') {
             steps {
                 script {
-                    docker.withRegistry("${DOCKER_REGISTRY}", "${DOCKER_CREDENTIALS}") {
-                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
+                    withDockerRegistry(credentialsId: 'DOCKER_CREDENTIALS', toolName: 'docker') {
                         def eshopwebmvcImage = docker.build("${ESHOPWEBMVC_IMAGE}", './src/Web')
                         eshopwebmvcImage.push()
 
