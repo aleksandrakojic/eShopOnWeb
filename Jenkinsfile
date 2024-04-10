@@ -1,152 +1,65 @@
+
 pipeline {
     agent any
+
     environment {
-        VERSION = "1.0.${env.BUILD_NUMBER}"
+      VERSION = "1.0.${env.BUILD_NUMBER}"
 
         AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
-        AWS_DEFAULT_REGION = "eu-central-1"
+        AWS_DEFAULT_REGION = "eu-west-3"
 
         DOCKER_USERNAME = "underdogdevops"
-        DOCKER_CREDENTIALS = credentials('docker-credentials')
+        DOCKER_REGISTRY = 'https://registry.hub.docker.com'
+        DOCKER_CREDENTIALS = credentials('DOCKERHUB_CREDENTIALS')
 
         ESHOPWEBMVC_IMAGE = "underdogdevops/eshopwebmvc"
         ESHOPPUBLICAPI_IMAGE = "underdogdevops/eshoppublicapi"
-    }
-    parameters {
-        booleanParam(name: 'PLAN_TERRAFORM', defaultValue: false, description: 'Check to plan Terraform changes')
-        booleanParam(name: 'APPLY_TERRAFORM', defaultValue: false, description: 'Check to apply Terraform changes')
-        booleanParam(name: 'DESTROY_TERRAFORM', defaultValue: false, description: 'Check to apply Terraform changes')
-    }
-
-  stages {
-    stage('clean workspace'){
-      steps{
-          cleanWs()
-      }
-    }
-    stage('Checkout code') {
-      steps {
-        git(url: 'https://github.com/aleksandrakojic/eShopOnWeb.git', branch: 'main')
-        script {
-          sh 'ls -la'
-        }
         
-      }
     }
 
-    stage('Terraform Init') {
-      steps {
-        withCredentials(bindings: [[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir(path: 'terraform') {
-            sh 'echo "======Terraform Init======="'
-            sh 'terraform init'
+    stages {
+        stage('clean workspace'){
+          steps{
+              cleanWs()
           }
-
         }
-
-      }
-    }
-
-    stage('Terraform Plan') {
-      when {
-        expression {
-          params.PLAN_TERRAFORM
-        }
-
-      }
-      steps {
-        withCredentials(bindings: [[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir(path: 'terraform') {
-            sh 'echo "=========Terraform Plan=========="'
-            sh 'terraform plan'
-          }
-
-        }
-
-      }
-    }
-
-    stage('Terraform Apply') {
-      when {
-        expression {
-          params.APPLY_TERRAFORM
-        }
-
-      }
-      steps {
-        withCredentials(bindings: [[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir(path: 'terraform') {
-            sh 'echo "=========Terraform Apply============"'
-            sh 'terraform apply -auto-approve'
-          }
-
-        }
-
-      }
-    }
-
-    stage('Terraform Destroy') {
-      when {
-        expression {
-          params.DESTROY_TERRAFORM
-        }
-
-      }
-      steps {
-        withCredentials(bindings: [[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir(path: 'terraform') {
-            sh 'echo "=========Terraform Destroy=========="'
-            sh 'terraform destroy -auto-approve'
-          }
-
-        }
-
-      }
-    }
-
-    stage('Build Images and Publish') {
-      parallel {
-        stage('Build Web UI image') {
+        stage('Checkout code') {
           steps {
-            dir('src/Web/') {
-              script {
-                def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
-
-                sh "docker build -t ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile ."
-                withDockerRegistry(credentialsId: 'docker-credentials', url: 'https://hub.docker.com/') {
-                  sh "docker push ${ESHOPWEBMVC_IMAGE}:${dockerTag}-${VERSION}"
-                }
-                // Docker login
-                // sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
-                
-                // sh "docker logout"
-              }
+            git(url: 'https://github.com/aleksandrakojic/eShopOnWeb.git', branch: 'main')
+            script {
+              sh 'ls -la'
             }
+            
           }
         }
 
-        stage('Build PublicApi image') {
-          steps {
-            dir('src/PublicApi/') {
-              script {
-                def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
+        stage('Build and Push Docker Images') {
+            steps {
+                script {
+                    docker.withRegistry("${DOCKER_REGISTRY}", "${DOCKER_CREDENTIALS}") {
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
+                        def eshopwebmvcImage = docker.build("${ESHOPWEBMVC_IMAGE}", './src/Web')
+                        eshopwebmvcImage.push()
 
-                sh "docker build -t ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION} -f ./Dockerfile ."
-                withDockerRegistry(credentialsId: 'docker-credentials', url: 'https://hub.docker.com/') {
-                  sh "docker push ${ESHOPPUBLICAPI_IMAGE}:${dockerTag}-${VERSION}"
+                        def eshoppublicapiImage = docker.build("${ESHOPPUBLICAPI_IMAGE}", './src/PublicApi')
+                        eshoppublicapiImage.push()
+                    }
                 }
-                // Docker login
-                // sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
-                // sh "docker logout"
-              }
             }
-          }
         }
 
-      }
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    dir('kube') {
+                        sh 'kustomize edit set image eshopwebmvc=${ESHOPWEBMVC_IMAGE}'
+                        sh 'kustomize edit set image eshoppublicapi=${ESHOPPUBLICAPI_IMAGE}'
+                        sh 'kustomize build overlays/prod | kubectl apply -f -'
+                    }
+                }
+            }
+        }
     }
-
-  }
-  
 }
+ 

@@ -3,11 +3,18 @@ kind: Deployment
 metadata:
   name: eshopwebmvc
 spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eshopwebmvc
   template:
+    metadata:
+      labels:
+        app: eshopwebmvc
     spec:
       containers:
       - name: eshopwebmvc
-        image: ${DOCKER_REGISTRY-}eshopwebmvc
+        image: underdogdevops/eshopwebmvc:latest
         ports:
         - containerPort: 8080
         volumeMounts:
@@ -17,12 +24,16 @@ spec:
         - name: usersecrets
           mountPath: /root/.microsoft/usersecrets
           readOnly: true
-        environment:
-        - name: ASPNETCORE_ENVIRONMENT
-          value: Docker
-        - name: ASPNETCORE_URLS
-          value: http://+:8080
-
+        envFrom:
+        - configMapRef:
+            name: app-config
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -30,11 +41,17 @@ metadata:
   name: eshoppublicapi
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: eshoppublicapi
   template:
+    metadata:
+      labels:
+        app: eshoppublicapi
     spec:
       containers:
       - name: eshoppublicapi
-        image: ${DOCKER_REGISTRY-}eshoppublicapi
+        image: underdogdevops/eshoppublicapi:latest
         ports:
         - containerPort: 8080
         volumeMounts:
@@ -44,8 +61,13 @@ spec:
         - name: usersecrets
           mountPath: /root/.microsoft/usersecrets
           readOnly: true
-        environment:
-        - name: ASPNETCORE_ENVIRONMENT
-          value: Docker
-        - name: ASPNETCORE_URLS
-          value: http://+:8080
+        envFrom:
+        - configMapRef:
+            name: app-config
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi

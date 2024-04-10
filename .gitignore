@@ -262,3 +262,5 @@ pub/
 .azure
 
 git 
+.terraform
+

@@ -1,0 +1,17 @@
+resources:
+- deployment.yaml
+- service.yaml
+- pvc.yaml
+
+images:
+- name: eshopwebmvc
+  newName: underdogdevops/eshopwebmvc:latest
+- name: eshoppublicapi
+  newName: underdogdevops/eshoppublicapi:latest
+- name: sqlserver
+  newName: mcr.microsoft.com/azure-sql-edge
+
+configMapGenerator:
+- name: app-config
+  envs:
+  - env.properties
